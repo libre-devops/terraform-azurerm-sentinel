@@ -7,7 +7,7 @@ variables {
   workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-001/providers/Microsoft.OperationalInsights/workspaces/log-ldo-uks-tst-001"
 }
 
-# The default call: onboarding only, no CMK, no metadata, no indicators.
+# The default call: onboarding only, no CMK, no metadata.
 run "onboarding_defaults" {
   command = apply
 
@@ -21,14 +21,9 @@ run "onboarding_defaults" {
     error_message = "customer_managed_key_enabled should default to false."
   }
 
-  assert {
-    condition     = length(azurerm_sentinel_metadata.this) == 0 && length(azurerm_sentinel_threat_intelligence_indicator.this) == 0
-    error_message = "No metadata or indicators should be created by default."
-  }
 }
 
-# The full surface: CMK onboarding, a metadata entry with every block, and indicators exercising the
-# label-as-display-name default, the source default, and the nested STIX blocks.
+# The full surface: CMK onboarding and a metadata entry with every block.
 run "full_surface" {
   command = apply
 
@@ -61,31 +56,6 @@ run "full_surface" {
       }
     }
 
-    threat_intelligence_indicators = {
-      "malicious-domain" = {
-        pattern           = "evil.example.com"
-        pattern_type      = "domain-name"
-        validate_from_utc = "2026-07-03T00:00:00Z"
-
-        validate_until_utc = "2027-07-03T00:00:00Z"
-        confidence         = 80
-        description        = "Known C2 domain."
-        threat_types       = ["malicious-activity"]
-        tags               = ["c2"]
-        kill_chain_phases  = ["command-and-control"]
-
-        external_references = [{ source_name = "internal", url = "https://example.com/ioc/1" }]
-        granular_markings   = [{ selectors = ["pattern"] }]
-      }
-
-      "bad-hash" = {
-        pattern           = "MD5:78ecc5c05cd8b79af480df2f8fba0b9d"
-        pattern_type      = "file"
-        validate_from_utc = "2026-07-03T00:00:00Z"
-        display_name      = "known bad installer"
-        source            = "Incident 4711"
-      }
-    }
   }
 
   assert {
@@ -103,30 +73,10 @@ run "full_surface" {
     error_message = "The support block should be created with its tier."
   }
 
-  assert {
-    condition     = azurerm_sentinel_threat_intelligence_indicator.this["malicious-domain"].display_name == "malicious-domain"
-    error_message = "An indicator's display name should default to its map key."
-  }
 
-  assert {
-    condition     = azurerm_sentinel_threat_intelligence_indicator.this["malicious-domain"].source == "Terraform"
-    error_message = "An indicator's source should default to Terraform."
-  }
 
-  assert {
-    condition     = azurerm_sentinel_threat_intelligence_indicator.this["bad-hash"].display_name == "known bad installer"
-    error_message = "An explicit display_name should win over the map key."
-  }
 
-  assert {
-    condition     = azurerm_sentinel_threat_intelligence_indicator.this["bad-hash"].source == "Incident 4711"
-    error_message = "An explicit source should win over the default."
-  }
 
-  assert {
-    condition     = azurerm_sentinel_threat_intelligence_indicator.this["malicious-domain"].kill_chain_phase[0].name == "command-and-control"
-    error_message = "kill_chain_phases should map onto kill_chain_phase blocks."
-  }
 }
 
 # A metadata-only call against an already onboarded workspace: no onboarding resource, and the
@@ -190,56 +140,5 @@ run "rejects_bad_metadata_kind" {
   expect_failures = [var.sentinel_metadata]
 }
 
-# A file indicator without the <HashName>:<Value> pattern form is rejected.
-run "rejects_bad_file_pattern" {
-  command = plan
 
-  variables {
-    threat_intelligence_indicators = {
-      bad = {
-        pattern           = "not-a-hash"
-        pattern_type      = "file"
-        validate_from_utc = "2026-07-03T00:00:00Z"
-      }
-    }
-  }
 
-  expect_failures = [var.threat_intelligence_indicators]
-}
-
-# An out-of-range confidence is rejected.
-run "rejects_bad_confidence" {
-  command = plan
-
-  variables {
-    threat_intelligence_indicators = {
-      bad = {
-        pattern           = "1.2.3.4"
-        pattern_type      = "ipv4-addr"
-        validate_from_utc = "2026-07-03T00:00:00Z"
-        confidence        = 101
-      }
-    }
-  }
-
-  expect_failures = [var.threat_intelligence_indicators]
-}
-
-# A reversed indicator validity window trips the ordering check (a warning surfaced as a failed
-# check assertion under terraform test).
-run "flags_reversed_indicator_window" {
-  command = apply
-
-  variables {
-    threat_intelligence_indicators = {
-      reversed = {
-        pattern            = "1.2.3.4"
-        pattern_type       = "ipv4-addr"
-        validate_from_utc  = "2027-07-03T00:00:00Z"
-        validate_until_utc = "2026-07-03T00:00:00Z"
-      }
-    }
-  }
-
-  expect_failures = [check.indicator_windows_are_ordered]
-}

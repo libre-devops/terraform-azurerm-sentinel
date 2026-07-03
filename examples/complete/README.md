@@ -14,11 +14,10 @@
 
 # Complete example
 
-Every feature of the module. A workspace onboarded to Sentinel, three threat intelligence
-indicators exercising the full STIX surface (windows, confidence, references, markings, kill chain
-phases, and the file-hash pattern form), and a metadata-only second call (`create_onboarding =
-false`) attaching authorship, source, support, category, and dependency metadata to a watchlist
-created after the onboarding, which is the composition shape metadata exists for. Run it with `just e2e complete`,
+Every feature of the module. A workspace onboarded to Sentinel and a metadata-only second call
+(`create_onboarding = false`) attaching authorship, source, support, category, and dependency
+metadata to a watchlist created after the onboarding, which is the composition shape metadata
+exists for. Run it with `just e2e complete`,
 which applies the stack then always destroys it.
 
 [![Terraform Registry](https://img.shields.io/badge/registry-libre--devops-7B42BC?logo=terraform&logoColor=white)](https://registry.terraform.io/namespaces/libre-devops)
@@ -27,10 +26,10 @@ which applies the stack then always destroys it.
 ## Example configuration
 
 ```hcl
-# The full surface: a workspace onboarded to Sentinel, threat intelligence indicators exercising
-# every STIX field, and a metadata-only second call describing content created after the onboarding
-# (here a watchlist), which is the composition shape metadata exists for. Sentinel starts a 31 day
-# free trial per workspace and the stack is applied then destroyed in one CI run.
+# The full surface: a workspace onboarded to Sentinel and a metadata-only second call describing
+# content created after the onboarding (here a watchlist), which is the composition shape metadata
+# exists for. Sentinel starts a 31 day free trial per workspace and the stack is applied then
+# destroyed in one CI run.
 locals {
   location = lookup(var.regions, var.loc, "uksouth")
   rg_name  = "rg-${var.short}-${var.loc}-${terraform.workspace}-002"
@@ -75,57 +74,6 @@ module "sentinel" {
 
   workspace_id = module.log_analytics.workspace_ids[local.law_name]
 
-  threat_intelligence_indicators = {
-    # Every optional exercised: window, confidence, STIX metadata, references, markings, phases.
-    "malicious-domain" = {
-      pattern           = "evil.example.com"
-      pattern_type      = "domain-name"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-
-      validate_until_utc  = "2030-01-01T00:00:00Z"
-      confidence          = 80
-      created_by          = "platform@example.com"
-      description         = "Known C2 domain used by the example threat actor."
-      language            = "en"
-      pattern_version     = "2.1"
-      revoked             = false
-      tags                = ["c2", "example"]
-      threat_types        = ["malicious-activity"]
-      kill_chain_phases   = ["command-and-control"]
-      object_marking_refs = []
-
-      external_references = [
-        {
-          source_name = "internal-ticket"
-          description = "IOC imported from the incident record."
-          url         = "https://example.com/incidents/4711"
-        }
-      ]
-
-      granular_markings = [
-        { selectors = ["pattern"] }
-      ]
-    }
-
-    # A file-hash indicator: pattern uses the <HashName>:<Value> form the provider requires.
-    "known-bad-installer" = {
-      pattern           = "MD5:78ecc5c05cd8b79af480df2f8fba0b9d"
-      pattern_type      = "file"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-      display_name      = "Known bad installer"
-      source            = "Incident 4711"
-      confidence        = 100
-      threat_types      = ["malware"]
-    }
-
-    # The minimal indicator shape: everything else defaulted (source stamps as Terraform, the map
-    # key becomes the display name).
-    "suspicious-ip" = {
-      pattern           = "203.0.113.66"
-      pattern_type      = "ipv4-addr"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-    }
-  }
 }
 
 # Content created after the onboarding: a watchlist the metadata below describes. Raw scaffolding
@@ -224,7 +172,5 @@ module "sentinel_metadata" {
 |------|-------------|
 | <a name="output_onboarding_id"></a> [onboarding\_id](#output\_onboarding\_id) | The Sentinel onboarding id (the handle the other sentinel-* modules take). |
 | <a name="output_sentinel_metadata_ids"></a> [sentinel\_metadata\_ids](#output\_sentinel\_metadata\_ids) | Map of metadata name to id (from the metadata-only call). |
-| <a name="output_threat_intelligence_indicator_guids"></a> [threat\_intelligence\_indicator\_guids](#output\_threat\_intelligence\_indicator\_guids) | Map of indicator label to the guid Sentinel shows in the portal. |
-| <a name="output_threat_intelligence_indicator_ids"></a> [threat\_intelligence\_indicator\_ids](#output\_threat\_intelligence\_indicator\_ids) | Map of indicator label to id. |
 | <a name="output_workspace_id"></a> [workspace\_id](#output\_workspace\_id) | The onboarded Log Analytics workspace id. |
 <!-- END_TF_DOCS -->

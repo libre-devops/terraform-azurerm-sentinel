@@ -23,26 +23,6 @@ output "sentinel_metadata_ids_zipmap" {
   value       = { for k, m in azurerm_sentinel_metadata.this : k => { name = m.name, id = m.id } }
 }
 
-output "threat_intelligence_indicator_guids" {
-  description = "Map of indicator label to the indicator's guid (the id Sentinel shows in the portal)."
-  value       = { for k, i in azurerm_sentinel_threat_intelligence_indicator.this : k => i.guid }
-}
-
-output "threat_intelligence_indicator_ids" {
-  description = "Map of indicator label to its id."
-  value       = { for k, i in azurerm_sentinel_threat_intelligence_indicator.this : k => i.id }
-}
-
-output "threat_intelligence_indicator_ids_zipmap" {
-  description = "Map of indicator label to { name, id }, for easy composition with other modules."
-  value       = { for k, i in azurerm_sentinel_threat_intelligence_indicator.this : k => { name = i.display_name, id = i.id } }
-}
-
-output "threat_intelligence_indicators" {
-  description = "Map of indicator label to the full indicator object (including the computed guid, parsed pattern, and defanged flag)."
-  value       = azurerm_sentinel_threat_intelligence_indicator.this
-}
-
 output "workspace_id" {
   description = "The id of the onboarded Log Analytics workspace, passed through for composition."
   value       = var.workspace_id

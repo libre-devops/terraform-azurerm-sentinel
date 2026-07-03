@@ -1,7 +1,7 @@
-# The full surface: a workspace onboarded to Sentinel, threat intelligence indicators exercising
-# every STIX field, and a metadata-only second call describing content created after the onboarding
-# (here a watchlist), which is the composition shape metadata exists for. Sentinel starts a 31 day
-# free trial per workspace and the stack is applied then destroyed in one CI run.
+# The full surface: a workspace onboarded to Sentinel and a metadata-only second call describing
+# content created after the onboarding (here a watchlist), which is the composition shape metadata
+# exists for. Sentinel starts a 31 day free trial per workspace and the stack is applied then
+# destroyed in one CI run.
 locals {
   location = lookup(var.regions, var.loc, "uksouth")
   rg_name  = "rg-${var.short}-${var.loc}-${terraform.workspace}-002"
@@ -41,70 +41,11 @@ module "log_analytics" {
 # customer_managed_key_enabled stays on its false default: CMK onboarding needs a CMK-configured
 # Log Analytics cluster and Key Vault first, and once onboarded with CMK a workspace cannot be
 # re-onboarded without it.
-# Sentinel derives an indicator's id from its content, and the TI backend is eventually consistent
-# across workspace incarnations: recreating byte-identical indicators shortly after a previous run
-# can 409 against invisible residue. A per-apply suffix keeps every run's IOCs unique, which is
-# also how real threat intel behaves.
-resource "random_id" "ioc" {
-  byte_length = 4
-}
-
 module "sentinel" {
   source = "../../"
 
   workspace_id = module.log_analytics.workspace_ids[local.law_name]
 
-  threat_intelligence_indicators = {
-    # Every optional exercised: window, confidence, STIX metadata, references, markings, phases.
-    "malicious-domain" = {
-      pattern           = "evil-${random_id.ioc.hex}.example.com"
-      pattern_type      = "domain-name"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-
-      validate_until_utc  = "2030-01-01T00:00:00Z"
-      confidence          = 80
-      created_by          = "platform@example.com"
-      description         = "Known C2 domain used by the example threat actor."
-      language            = "en"
-      pattern_version     = "2.1"
-      revoked             = false
-      tags                = ["c2", "example"]
-      threat_types        = ["malicious-activity"]
-      kill_chain_phases   = ["command-and-control"]
-      object_marking_refs = []
-
-      external_references = [
-        {
-          source_name = "internal-ticket"
-          description = "IOC imported from the incident record."
-          url         = "https://example.com/incidents/4711"
-        }
-      ]
-
-      granular_markings = [
-        { selectors = ["pattern"] }
-      ]
-    }
-
-    # A file-hash indicator: pattern uses the <HashName>:<Value> form the provider requires.
-    "known-bad-installer" = {
-      pattern           = "MD5:${random_id.ioc.hex}c05cd8b79af480df2f8fba0b9d"
-      pattern_type      = "file"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-      display_name      = "Known bad installer"
-      source            = "Incident 4711"
-      confidence        = 100
-      threat_types      = ["malware"]
-    }
-
-    # The minimal indicator shape: everything else defaulted (source stamps as Terraform, the map
-    # key becomes the display name).
-    "suspicious-ip" = {
-      pattern           = "203.0.${random_id.ioc.dec % 254}.66"
-      pattern_type      = "ipv4-addr"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-    }
-  }
 }
 
 # Content created after the onboarding: a watchlist the metadata below describes. Raw scaffolding

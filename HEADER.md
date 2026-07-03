@@ -14,8 +14,7 @@
 
 # Terraform Azure Sentinel
 
-Onboards a Log Analytics workspace to Microsoft Sentinel, with optional content metadata and
-threat intelligence indicators.
+Onboards a Log Analytics workspace to Microsoft Sentinel, with optional content metadata.
 
 [![CI](https://github.com/libre-devops/terraform-azurerm-sentinel/actions/workflows/ci.yml/badge.svg)](https://github.com/libre-devops/terraform-azurerm-sentinel/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/libre-devops/terraform-azurerm-sentinel?sort=semver&label=release)](https://github.com/libre-devops/terraform-azurerm-sentinel/releases/latest)
@@ -36,16 +35,18 @@ apply order.
   workspace's Sentinel state; `false` for additional calls against an already onboarded workspace
   (a metadata-only call, for example). Customer-managed key onboarding is supported and its
   one-way nature (once onboarded with CMK, never without again) is documented on the variable.
-- **Threat intelligence indicators, full STIX surface.** Keyed by a label that doubles as the
-  display name; the source stamps as `Terraform` unless overridden; the file pattern's
-  `<HashName>:<Value>` form is validated before the provider sees it, as are RFC3339 windows,
-  confidence range, and pattern types.
 - **Content metadata done right.** Authorship, source, support, category, tactics, and dependency
   metadata for content items, with the documented kind and tier enums validated up front and the
   recursive dependency criteria taken as JSON (build it with `jsonencode`). A check block warns
   when a `parent_id` lives in a different workspace, which almost always means a copy-paste.
-- **Everything exported.** The onboarding id, the full metadata and indicator objects, plus
-  `*_ids` and `*_ids_zipmap` maps for easy composition.
+- **Everything exported.** The onboarding id and the full metadata objects, plus `*_ids` and
+  `*_ids_zipmap` maps for easy composition.
+
+Threat intelligence indicators are deliberately NOT managed here: the azurerm resource's
+read-after-create races in real pipelines ("Provider produced inconsistent result after apply ...
+Root object was present, but now absent"), so indicator seeding through Terraform is not reliable.
+Ingest TI through the threat_intelligence / microsoft_threat_intelligence / TAXII data connectors
+(see the sentinel-data-connector module) or the upload indicators API instead.
 
 Requires Terraform >= 1.9 and azurerm >= 4.0.
 
@@ -57,16 +58,6 @@ module "sentinel" {
   version = "~> 4.0"
 
   workspace_id = module.log_analytics.workspace_ids["log-ldo-uks-prd-001"]
-
-  threat_intelligence_indicators = {
-    "malicious-domain" = {
-      pattern           = "evil.example.com"
-      pattern_type      = "domain-name"
-      validate_from_utc = "2026-01-01T00:00:00Z"
-      confidence        = 80
-      threat_types      = ["malicious-activity"]
-    }
-  }
 }
 
 # Downstream sentinel-* modules take the onboarding id and parse the workspace id from it.
@@ -94,8 +85,8 @@ module "sentinel_metadata" {
 ## Examples
 
 - [`examples/minimal`](./examples/minimal) - a fresh workspace onboarded to Sentinel, nothing else.
-- [`examples/complete`](./examples/complete) - the full surface: indicators exercising every STIX
-  field, plus a metadata-only second call describing a watchlist created after the onboarding.
+- [`examples/complete`](./examples/complete) - the full surface: the onboarding plus a
+  metadata-only second call describing a watchlist created after the onboarding.
 
 ## Developing
 

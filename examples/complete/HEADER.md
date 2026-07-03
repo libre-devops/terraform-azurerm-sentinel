@@ -14,11 +14,10 @@
 
 # Complete example
 
-Every feature of the module. A workspace onboarded to Sentinel, three threat intelligence
-indicators exercising the full STIX surface (windows, confidence, references, markings, kill chain
-phases, and the file-hash pattern form), and a metadata-only second call (`create_onboarding =
-false`) attaching authorship, source, support, category, and dependency metadata to a watchlist
-created after the onboarding, which is the composition shape metadata exists for. Run it with `just e2e complete`,
+Every feature of the module. A workspace onboarded to Sentinel and a metadata-only second call
+(`create_onboarding = false`) attaching authorship, source, support, category, and dependency
+metadata to a watchlist created after the onboarding, which is the composition shape metadata
+exists for. Run it with `just e2e complete`,
 which applies the stack then always destroys it.
 
 [![Terraform Registry](https://img.shields.io/badge/registry-libre--devops-7B42BC?logo=terraform&logoColor=white)](https://registry.terraform.io/namespaces/libre-devops)
