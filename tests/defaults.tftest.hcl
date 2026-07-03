@@ -59,7 +59,7 @@ run "full_surface" {
 
         author   = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
         category = { domains = ["Security - Threat Protection"], verticals = ["Technology"] }
-        source   = { kind = "LocalWorkspace", name = "log-ldo-uks-tst-001" }
+        source   = { kind = "Solution", name = "Libre DevOps Content" }
         support  = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }
       }
     }
@@ -148,5 +148,23 @@ run "rejects_bad_metadata_kind" {
   expect_failures = [var.sentinel_metadata]
 }
 
+# A category on non-Solution content is rejected (the service enforces this at apply; the module
+# enforces it at plan).
+run "rejects_category_without_solution_source" {
+  command = plan
 
+  variables {
+    sentinel_metadata = {
+      bad = {
+        content_id = "x"
+        kind       = "Watchlist"
+        parent_id  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-001/providers/Microsoft.OperationalInsights/workspaces/log-ldo-uks-tst-001/providers/Microsoft.SecurityInsights/watchlists/wl-001"
 
+        category = { domains = ["Security - Threat Protection"] }
+        source   = { kind = "LocalWorkspace" }
+      }
+    }
+  }
+
+  expect_failures = [var.sentinel_metadata]
+}

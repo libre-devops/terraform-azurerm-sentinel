@@ -117,6 +117,14 @@ DESC
 
   validation {
     condition = alltrue([
+      for m in values(var.sentinel_metadata) :
+      m.category == null ? true : try(m.source.kind, null) == "Solution"
+    ])
+    error_message = "The service only accepts a category block on content sourced from a Solution (source.kind = \"Solution\"); remove category or change the source kind."
+  }
+
+  validation {
+    condition = alltrue([
       for m in values(var.sentinel_metadata) : alltrue([
         for t in coalesce(m.threat_analysis_tactics, []) : contains([
           "Reconnaissance", "ResourceDevelopment", "InitialAccess", "Execution", "Persistence",

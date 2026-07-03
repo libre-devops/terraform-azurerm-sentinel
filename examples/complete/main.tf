@@ -90,10 +90,11 @@ module "sentinel_metadata" {
         criteria = [{ contentId = "AzureActiveDirectory", kind = "DataConnector" }]
       })
 
-      author   = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
-      category = { domains = ["Security - Threat Protection"], verticals = ["Technology"] }
-      source   = { kind = "LocalWorkspace", name = local.law_name }
-      support  = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }
+      # No category block: the service only accepts categories on Solution-sourced content, and
+      # this metadata describes local workspace content.
+      author  = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
+      source  = { kind = "LocalWorkspace", name = local.law_name }
+      support = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }
     }
   }
 }
