@@ -79,6 +79,11 @@ jobs:
     if: ${{ github.event_name == 'workflow_dispatch' }}
     needs: validate
     runs-on: ubuntu-latest
+    env:
+      # GitHub-hosted runners egress from US regions. SecurityInsights reads-after-writes against a
+      # cross-ocean region intermittently hit a replica that has not seen the write yet ("Root
+      # object was present, but now absent"), so the disposable self-test stack deploys runner-adjacent.
+      TF_VAR_loc: eus
     permissions:
       id-token: write
       contents: read
