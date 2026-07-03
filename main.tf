@@ -9,6 +9,20 @@ resource "azurerm_sentinel_log_analytics_workspace_onboarding" "this" {
   customer_managed_key_enabled = var.customer_managed_key_enabled
 }
 
+# The SecurityInsights data plane is not ready the moment the onboarding returns: children created
+# seconds later (watchlists, indicators) intermittently fail their read-after-create with
+# "Root object was present, but now absent". The settle delay is threaded through the
+# onboarding_id output, so every consumer of that output inherits the wait without knowing about it.
+resource "time_sleep" "onboarding_settle" {
+  count = var.create_onboarding ? 1 : 0
+
+  create_duration = var.onboarding_settle_duration
+
+  triggers = {
+    onboarding_id = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].id
+  }
+}
+
 # Metadata attaches authorship, source, support, and dependency information to Sentinel content
 # items (rules, playbooks, watchlists, and so on). Serialized after onboarding: the
 # Microsoft.SecurityInsights provider paths only exist on an onboarded workspace.
@@ -74,5 +88,5 @@ resource "azurerm_sentinel_metadata" "this" {
     }
   }
 
-  depends_on = [azurerm_sentinel_log_analytics_workspace_onboarding.this]
+  depends_on = [time_sleep.onboarding_settle]
 }

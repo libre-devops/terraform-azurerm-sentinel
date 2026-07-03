@@ -5,6 +5,9 @@ mock_provider "azurerm" {}
 
 variables {
   workspace_id = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-001/providers/Microsoft.OperationalInsights/workspaces/log-ldo-uks-tst-001"
+
+  # No need to wait out the real settle delay in mocked tests.
+  onboarding_settle_duration = "0s"
 }
 
 # The default call: onboarding only, no CMK, no metadata.
@@ -19,6 +22,11 @@ run "onboarding_defaults" {
   assert {
     condition     = azurerm_sentinel_log_analytics_workspace_onboarding.this[0].customer_managed_key_enabled == false
     error_message = "customer_managed_key_enabled should default to false."
+  }
+
+  assert {
+    condition     = output.onboarding_id == azurerm_sentinel_log_analytics_workspace_onboarding.this[0].id
+    error_message = "onboarding_id should surface the onboarding id through the settle delay."
   }
 
 }

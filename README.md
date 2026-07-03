@@ -125,12 +125,14 @@ The Requirements, Providers, Inputs, Outputs, and Resources below are generated 
 |------|---------|
 | <a name="requirement_terraform"></a> [terraform](#requirement\_terraform) | >= 1.9.0, < 2.0.0 |
 | <a name="requirement_azurerm"></a> [azurerm](#requirement\_azurerm) | >= 4.0.0, < 5.0.0 |
+| <a name="requirement_time"></a> [time](#requirement\_time) | >= 0.9.0, < 1.0.0 |
 
 ## Providers
 
 | Name | Version |
 |------|---------|
 | <a name="provider_azurerm"></a> [azurerm](#provider\_azurerm) | >= 4.0.0, < 5.0.0 |
+| <a name="provider_time"></a> [time](#provider\_time) | >= 0.9.0, < 1.0.0 |
 
 ## Modules
 
@@ -142,6 +144,7 @@ No modules.
 |------|------|
 | [azurerm_sentinel_log_analytics_workspace_onboarding.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/sentinel_log_analytics_workspace_onboarding) | resource |
 | [azurerm_sentinel_metadata.this](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs/resources/sentinel_metadata) | resource |
+| [time_sleep.onboarding_settle](https://registry.terraform.io/providers/hashicorp/time/latest/docs/resources/sleep) | resource |
 
 ## Inputs
 
@@ -149,6 +152,7 @@ No modules.
 |------|-------------|------|---------|:--------:|
 | <a name="input_create_onboarding"></a> [create\_onboarding](#input\_create\_onboarding) | Whether this call onboards the workspace to Sentinel. Leave true on the one call that owns the<br/>onboarding; set false for additional calls against an already onboarded workspace (for example a<br/>metadata-only call describing content other modules created, which cannot live in the onboarding<br/>call when that content itself waits for the onboarding). | `bool` | `true` | no |
 | <a name="input_customer_managed_key_enabled"></a> [customer\_managed\_key\_enabled](#input\_customer\_managed\_key\_enabled) | Whether the Sentinel workspace uses a customer-managed key. CMK must already be enabled on the<br/>Log Analytics workspace and the Key Vault access policy in place. NOTE: once a workspace is<br/>onboarded with this set to true it cannot be onboarded again with it set to false. | `bool` | `false` | no |
+| <a name="input_onboarding_settle_duration"></a> [onboarding\_settle\_duration](#input\_onboarding\_settle\_duration) | How long to wait after onboarding before the onboarding\_id output resolves (and metadata is created). The SecurityInsights service intermittently fails read-after-create on children created seconds after a fresh onboarding; the delay is threaded through onboarding\_id so downstream modules inherit it. Set "0s" to disable. | `string` | `"30s"` | no |
 | <a name="input_sentinel_metadata"></a> [sentinel\_metadata](#input\_sentinel\_metadata) | Sentinel metadata entries, keyed by the metadata name. Metadata attaches authorship, source,<br/>support, and dependency information to a content item (an analytics rule, playbook, watchlist,<br/>workbook, and so on) identified by parent\_id. `dependency` is a raw JSON string (pass it through<br/>jsonencode) because the ARM schema nests criteria recursively, which HCL object types cannot express. | <pre>map(object({<br/>    content_id = string<br/>    kind       = string<br/>    parent_id  = string<br/><br/>    content_schema_version     = optional(string)<br/>    custom_version             = optional(string)<br/>    dependency                 = optional(string)<br/>    first_publish_date         = optional(string)<br/>    icon_id                    = optional(string)<br/>    last_publish_date          = optional(string)<br/>    preview_images             = optional(list(string))<br/>    preview_images_dark        = optional(list(string))<br/>    providers                  = optional(list(string))<br/>    threat_analysis_tactics    = optional(list(string))<br/>    threat_analysis_techniques = optional(list(string))<br/>    version                    = optional(string)<br/><br/>    author = optional(object({<br/>      name  = optional(string)<br/>      email = optional(string)<br/>      link  = optional(string)<br/>    }))<br/><br/>    category = optional(object({<br/>      domains   = optional(list(string))<br/>      verticals = optional(list(string))<br/>    }))<br/><br/>    source = optional(object({<br/>      kind = string<br/>      name = optional(string)<br/>      id   = optional(string)<br/>    }))<br/><br/>    support = optional(object({<br/>      tier  = string<br/>      name  = optional(string)<br/>      email = optional(string)<br/>      link  = optional(string)<br/>    }))<br/>  }))</pre> | `{}` | no |
 | <a name="input_workspace_id"></a> [workspace\_id](#input\_workspace\_id) | The id of the Log Analytics workspace to onboard to Microsoft Sentinel. | `string` | n/a | yes |
 
@@ -157,7 +161,7 @@ No modules.
 | Name | Description |
 |------|-------------|
 | <a name="output_customer_managed_key_enabled"></a> [customer\_managed\_key\_enabled](#output\_customer\_managed\_key\_enabled) | Whether the Sentinel workspace was onboarded with a customer-managed key (null when create\_onboarding is false). |
-| <a name="output_onboarding_id"></a> [onboarding\_id](#output\_onboarding\_id) | The id of the Sentinel workspace onboarding (an onboardingStates id), or null when create\_onboarding is false. Hand this to the other sentinel-* modules: they parse the workspace id back out of it, which makes the onboarding dependency explicit. |
+| <a name="output_onboarding_id"></a> [onboarding\_id](#output\_onboarding\_id) | The id of the Sentinel workspace onboarding (an onboardingStates id), or null when create\_onboarding is false. Hand this to the other sentinel-* modules: they parse the workspace id back out of it, which makes the onboarding dependency (and the settle delay) explicit. |
 | <a name="output_sentinel_metadata"></a> [sentinel\_metadata](#output\_sentinel\_metadata) | Map of metadata name to the full metadata object. |
 | <a name="output_sentinel_metadata_ids"></a> [sentinel\_metadata\_ids](#output\_sentinel\_metadata\_ids) | Map of metadata name to its id. |
 | <a name="output_sentinel_metadata_ids_zipmap"></a> [sentinel\_metadata\_ids\_zipmap](#output\_sentinel\_metadata\_ids\_zipmap) | Map of metadata name to { name, id }, for easy composition with other modules. |

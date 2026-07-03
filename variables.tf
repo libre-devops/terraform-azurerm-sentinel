@@ -23,6 +23,18 @@ DESC
   nullable = false
 }
 
+variable "onboarding_settle_duration" {
+  description = "How long to wait after onboarding before the onboarding_id output resolves (and metadata is created). The SecurityInsights service intermittently fails read-after-create on children created seconds after a fresh onboarding; the delay is threaded through onboarding_id so downstream modules inherit it. Set \"0s\" to disable."
+  type        = string
+  default     = "30s"
+  nullable    = false
+
+  validation {
+    condition     = can(regex("^[0-9]+(s|m|h)$", var.onboarding_settle_duration))
+    error_message = "onboarding_settle_duration must be a Go-style duration like 30s, 2m, or 0s."
+  }
+}
+
 variable "sentinel_metadata" {
   description = <<DESC
 Sentinel metadata entries, keyed by the metadata name. Metadata attaches authorship, source,

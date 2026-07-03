@@ -4,8 +4,8 @@ output "customer_managed_key_enabled" {
 }
 
 output "onboarding_id" {
-  description = "The id of the Sentinel workspace onboarding (an onboardingStates id), or null when create_onboarding is false. Hand this to the other sentinel-* modules: they parse the workspace id back out of it, which makes the onboarding dependency explicit."
-  value       = one(azurerm_sentinel_log_analytics_workspace_onboarding.this[*].id)
+  description = "The id of the Sentinel workspace onboarding (an onboardingStates id), or null when create_onboarding is false. Hand this to the other sentinel-* modules: they parse the workspace id back out of it, which makes the onboarding dependency (and the settle delay) explicit."
+  value       = one(time_sleep.onboarding_settle[*].triggers.onboarding_id)
 }
 
 output "sentinel_metadata" {
