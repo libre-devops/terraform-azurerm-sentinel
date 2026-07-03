@@ -39,6 +39,7 @@ run "full_surface" {
     customer_managed_key_enabled = true
 
     sentinel_metadata = {
+      # Ordinary content metadata: full legal surface for a LocalWorkspace-sourced item.
       "metadata-rule-001" = {
         content_id = "8b647f8e-0000-0000-0000-000000000001"
         kind       = "AnalyticsRule"
@@ -47,8 +48,6 @@ run "full_surface" {
         content_schema_version     = "2.0"
         custom_version             = "1.0.0"
         dependency                 = jsonencode({ operator = "AND", criteria = [{ contentId = "dep-001", kind = "DataConnector" }] })
-        first_publish_date         = "2026-01-01"
-        last_publish_date          = "2026-07-01"
         icon_id                    = "00000000-0000-0000-0000-00000000abcd"
         preview_images             = ["light.png"]
         preview_images_dark        = ["dark.png"]
@@ -57,11 +56,11 @@ run "full_surface" {
         threat_analysis_techniques = ["T1078"]
         version                    = "1.0.0"
 
-        author   = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
-        category = { domains = ["Security - Threat Protection"], verticals = ["Technology"] }
-        source   = { kind = "Solution", name = "Libre DevOps Content" }
-        support  = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }
+        author  = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
+        source  = { kind = "LocalWorkspace", name = "log-ldo-uks-tst-001" }
+        support = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }
       }
+
     }
 
   }
@@ -80,6 +79,7 @@ run "full_surface" {
     condition     = azurerm_sentinel_metadata.this["metadata-rule-001"].support[0].tier == "Community"
     error_message = "The support block should be created with its tier."
   }
+
 
 
 
@@ -148,9 +148,27 @@ run "rejects_bad_metadata_kind" {
   expect_failures = [var.sentinel_metadata]
 }
 
-# A category on non-Solution content is rejected (the service enforces this at apply; the module
-# enforces it at plan).
-run "rejects_category_without_solution_source" {
+
+
+# Solution packaging metadata is rejected outright (the provider cannot express its contract).
+run "rejects_solution_kind" {
+  command = plan
+
+  variables {
+    sentinel_metadata = {
+      bad = {
+        content_id = "x"
+        kind       = "Solution"
+        parent_id  = "x"
+      }
+    }
+  }
+
+  expect_failures = [var.sentinel_metadata]
+}
+
+# A LocalWorkspace source whose name is not the workspace name is rejected.
+run "rejects_wrong_localworkspace_name" {
   command = plan
 
   variables {
@@ -160,8 +178,7 @@ run "rejects_category_without_solution_source" {
         kind       = "Watchlist"
         parent_id  = "/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/rg-ldo-uks-tst-001/providers/Microsoft.OperationalInsights/workspaces/log-ldo-uks-tst-001/providers/Microsoft.SecurityInsights/watchlists/wl-001"
 
-        category = { domains = ["Security - Threat Protection"] }
-        source   = { kind = "LocalWorkspace" }
+        source = { kind = "LocalWorkspace", name = "some-other-workspace" }
       }
     }
   }

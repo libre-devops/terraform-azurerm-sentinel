@@ -41,6 +41,14 @@ Sentinel metadata entries, keyed by the metadata name. Metadata attaches authors
 support, and dependency information to a content item (an analytics rule, playbook, watchlist,
 workbook, and so on) identified by parent_id. `dependency` is a raw JSON string (pass it through
 jsonencode) because the ARM schema nests criteria recursively, which HCL object types cannot express.
+
+The service enforces rules it does not document (verified empirically); the module enforces them
+at plan instead of letting the apply 400:
+- source.kind = "LocalWorkspace" requires source.name to be the workspace's actual name.
+- kind = "Solution" (solution packaging) is rejected: the packaging contract requires parentId to
+  be the bare content id, which the azurerm provider cannot express (it insists on parsing
+  parent_id as an ARM resource id). The packaging-only fields (categories, publish dates) are
+  therefore not offered either; package solutions with the solution tooling, not this module.
 DESC
 
   type = map(object({
@@ -51,9 +59,7 @@ DESC
     content_schema_version     = optional(string)
     custom_version             = optional(string)
     dependency                 = optional(string)
-    first_publish_date         = optional(string)
     icon_id                    = optional(string)
-    last_publish_date          = optional(string)
     preview_images             = optional(list(string))
     preview_images_dark        = optional(list(string))
     providers                  = optional(list(string))
@@ -65,11 +71,6 @@ DESC
       name  = optional(string)
       email = optional(string)
       link  = optional(string)
-    }))
-
-    category = optional(object({
-      domains   = optional(list(string))
-      verticals = optional(list(string))
     }))
 
     source = optional(object({
@@ -92,11 +93,11 @@ DESC
       for m in values(var.sentinel_metadata) : contains([
         "AnalyticsRule", "AnalyticsRuleTemplate", "AutomationRule", "AzureFunction", "DataConnector",
         "DataType", "HuntingQuery", "InvestigationQuery", "LogicAppsCustomConnector", "Parser",
-        "Playbook", "PlaybookTemplate", "Solution", "Watchlist", "WatchlistTemplate", "Workbook",
+        "Playbook", "PlaybookTemplate", "Watchlist", "WatchlistTemplate", "Workbook",
         "WorkbookTemplate"
       ], m.kind)
     ])
-    error_message = "kind must be one of the Sentinel metadata content kinds (AnalyticsRule, AutomationRule, DataConnector, HuntingQuery, Playbook, Solution, Watchlist, Workbook, their *Template variants, AzureFunction, DataType, InvestigationQuery, LogicAppsCustomConnector, Parser)."
+    error_message = "kind must be one of the Sentinel metadata content kinds (AnalyticsRule, AutomationRule, DataConnector, HuntingQuery, Playbook, Watchlist, Workbook, their *Template variants, AzureFunction, DataType, InvestigationQuery, LogicAppsCustomConnector, Parser). Solution packaging is not supported."
   }
 
   validation {
@@ -116,11 +117,19 @@ DESC
   }
 
   validation {
+    condition     = alltrue([for m in values(var.sentinel_metadata) : m.kind != "Solution"])
+    error_message = "Solution packaging metadata is not supported: the packaging contract requires parentId to be the bare content id, which the azurerm provider cannot express. Package solutions with the solution tooling; this module handles content metadata."
+  }
+
+  validation {
     condition = alltrue([
       for m in values(var.sentinel_metadata) :
-      m.category == null ? true : try(m.source.kind, null) == "Solution"
+      try(m.source.kind, null) != "LocalWorkspace" ? true : (
+        m.source.name != null && can(regex("(?i)/workspaces/([^/]+)$", var.workspace_id)) &&
+        lower(m.source.name) == lower(regex("(?i)/workspaces/([^/]+)$", var.workspace_id)[0])
+      )
     ])
-    error_message = "The service only accepts a category block on content sourced from a Solution (source.kind = \"Solution\"); remove category or change the source kind."
+    error_message = "A LocalWorkspace source requires source.name to be the workspace's actual name (the service rejects anything else)."
   }
 
   validation {

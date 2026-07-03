@@ -90,8 +90,8 @@ resource "azurerm_sentinel_watchlist" "vips" {
 }
 
 # The metadata-only call: create_onboarding = false because the workspace above is already
-# onboarded, and this call exists only to attach authorship, source, support, category, and
-# dependency information to the watchlist.
+# onboarded, and this call exists only to attach authorship, source, support, and dependency
+# information to the watchlist.
 module "sentinel_metadata" {
   source = "../../"
 
@@ -107,8 +107,6 @@ module "sentinel_metadata" {
       content_schema_version     = "2.0"
       custom_version             = "1.0.0"
       version                    = "1.0.0"
-      first_publish_date         = "2026-07-03"
-      last_publish_date          = "2026-07-03"
       providers                  = ["Libre DevOps"]
       threat_analysis_tactics    = ["InitialAccess", "CredentialAccess"]
       threat_analysis_techniques = ["T1078"]
@@ -118,8 +116,9 @@ module "sentinel_metadata" {
         criteria = [{ contentId = "AzureActiveDirectory", kind = "DataConnector" }]
       })
 
-      # No category block: the service only accepts categories on Solution-sourced content, and
-      # this metadata describes local workspace content.
+      # source.name must be the workspace's actual name for a LocalWorkspace source; the module
+      # validates that at plan (solution packaging fields are not offered at all: the provider
+      # cannot express the packaging contract).
       author  = { name = "Libre DevOps", email = "info@libredevops.org", link = "https://libredevops.org" }
       source  = { kind = "LocalWorkspace", name = local.law_name }
       support = { tier = "Community", name = "Libre DevOps", link = "https://libredevops.org" }

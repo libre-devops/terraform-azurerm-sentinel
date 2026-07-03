@@ -38,9 +38,7 @@ resource "azurerm_sentinel_metadata" "this" {
   content_schema_version     = each.value.content_schema_version
   custom_version             = each.value.custom_version
   dependency                 = each.value.dependency
-  first_publish_date         = each.value.first_publish_date
   icon_id                    = each.value.icon_id
-  last_publish_date          = each.value.last_publish_date
   preview_images             = each.value.preview_images
   preview_images_dark        = each.value.preview_images_dark
   providers                  = each.value.providers
@@ -55,15 +53,6 @@ resource "azurerm_sentinel_metadata" "this" {
       name  = author.value.name
       email = author.value.email
       link  = author.value.link
-    }
-  }
-
-  dynamic "category" {
-    for_each = each.value.category != null ? [each.value.category] : []
-
-    content {
-      domains   = category.value.domains
-      verticals = category.value.verticals
     }
   }
 

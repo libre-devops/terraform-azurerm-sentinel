@@ -35,10 +35,13 @@ apply order.
   workspace's Sentinel state; `false` for additional calls against an already onboarded workspace
   (a metadata-only call, for example). Customer-managed key onboarding is supported and its
   one-way nature (once onboarded with CMK, never without again) is documented on the variable.
-- **Content metadata done right.** Authorship, source, support, category, tactics, and dependency
-  metadata for content items, with the documented kind and tier enums validated up front and the
-  recursive dependency criteria taken as JSON (build it with `jsonencode`). A check block warns
-  when a `parent_id` lives in a different workspace, which almost always means a copy-paste.
+- **Content metadata done right.** Authorship, source, support, tactics, and dependency metadata
+  for content items, with the documented kind and tier enums validated up front, the recursive
+  dependency criteria taken as JSON (build it with `jsonencode`), and the service's undocumented
+  rules enforced at plan instead of 400ing at apply: a LocalWorkspace source must carry the
+  workspace's actual name, and solution packaging (kind `Solution`, categories, publish dates) is
+  rejected outright because the azurerm provider cannot express its contract (parentId must be a
+  bare content id there). A check block warns when a `parent_id` lives in a different workspace.
 - **Everything exported.** The onboarding id and the full metadata objects, plus `*_ids` and
   `*_ids_zipmap` maps for easy composition.
 
