@@ -41,6 +41,14 @@ module "log_analytics" {
 # customer_managed_key_enabled stays on its false default: CMK onboarding needs a CMK-configured
 # Log Analytics cluster and Key Vault first, and once onboarded with CMK a workspace cannot be
 # re-onboarded without it.
+# Sentinel derives an indicator's id from its content, and the TI backend is eventually consistent
+# across workspace incarnations: recreating byte-identical indicators shortly after a previous run
+# can 409 against invisible residue. A per-apply suffix keeps every run's IOCs unique, which is
+# also how real threat intel behaves.
+resource "random_id" "ioc" {
+  byte_length = 4
+}
+
 module "sentinel" {
   source = "../../"
 
@@ -49,7 +57,7 @@ module "sentinel" {
   threat_intelligence_indicators = {
     # Every optional exercised: window, confidence, STIX metadata, references, markings, phases.
     "malicious-domain" = {
-      pattern           = "evil.example.com"
+      pattern           = "evil-${random_id.ioc.hex}.example.com"
       pattern_type      = "domain-name"
       validate_from_utc = "2026-01-01T00:00:00Z"
 
@@ -80,7 +88,7 @@ module "sentinel" {
 
     # A file-hash indicator: pattern uses the <HashName>:<Value> form the provider requires.
     "known-bad-installer" = {
-      pattern           = "MD5:78ecc5c05cd8b79af480df2f8fba0b9d"
+      pattern           = "MD5:${random_id.ioc.hex}c05cd8b79af480df2f8fba0b9d"
       pattern_type      = "file"
       validate_from_utc = "2026-01-01T00:00:00Z"
       display_name      = "Known bad installer"
@@ -92,7 +100,7 @@ module "sentinel" {
     # The minimal indicator shape: everything else defaulted (source stamps as Terraform, the map
     # key becomes the display name).
     "suspicious-ip" = {
-      pattern           = "203.0.113.66"
+      pattern           = "203.0.${random_id.ioc.dec % 254}.66"
       pattern_type      = "ipv4-addr"
       validate_from_utc = "2026-01-01T00:00:00Z"
     }
