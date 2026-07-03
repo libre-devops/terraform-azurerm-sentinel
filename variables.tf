@@ -1,0 +1,212 @@
+variable "create_onboarding" {
+  description = <<DESC
+Whether this call onboards the workspace to Sentinel. Leave true on the one call that owns the
+onboarding; set false for additional calls against an already onboarded workspace (for example a
+metadata-only call describing content other modules created, which cannot live in the onboarding
+call when that content itself waits for the onboarding).
+DESC
+
+  type     = bool
+  default  = true
+  nullable = false
+}
+
+variable "customer_managed_key_enabled" {
+  description = <<DESC
+Whether the Sentinel workspace uses a customer-managed key. CMK must already be enabled on the
+Log Analytics workspace and the Key Vault access policy in place. NOTE: once a workspace is
+onboarded with this set to true it cannot be onboarded again with it set to false.
+DESC
+
+  type     = bool
+  default  = false
+  nullable = false
+}
+
+variable "sentinel_metadata" {
+  description = <<DESC
+Sentinel metadata entries, keyed by the metadata name. Metadata attaches authorship, source,
+support, and dependency information to a content item (an analytics rule, playbook, watchlist,
+workbook, and so on) identified by parent_id. `dependency` is a raw JSON string (pass it through
+jsonencode) because the ARM schema nests criteria recursively, which HCL object types cannot express.
+DESC
+
+  type = map(object({
+    content_id = string
+    kind       = string
+    parent_id  = string
+
+    content_schema_version     = optional(string)
+    custom_version             = optional(string)
+    dependency                 = optional(string)
+    first_publish_date         = optional(string)
+    icon_id                    = optional(string)
+    last_publish_date          = optional(string)
+    preview_images             = optional(list(string))
+    preview_images_dark        = optional(list(string))
+    providers                  = optional(list(string))
+    threat_analysis_tactics    = optional(list(string))
+    threat_analysis_techniques = optional(list(string))
+    version                    = optional(string)
+
+    author = optional(object({
+      name  = optional(string)
+      email = optional(string)
+      link  = optional(string)
+    }))
+
+    category = optional(object({
+      domains   = optional(list(string))
+      verticals = optional(list(string))
+    }))
+
+    source = optional(object({
+      kind = string
+      name = optional(string)
+      id   = optional(string)
+    }))
+
+    support = optional(object({
+      tier  = string
+      name  = optional(string)
+      email = optional(string)
+      link  = optional(string)
+    }))
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for m in values(var.sentinel_metadata) : contains([
+        "AnalyticsRule", "AnalyticsRuleTemplate", "AutomationRule", "AzureFunction", "DataConnector",
+        "DataType", "HuntingQuery", "InvestigationQuery", "LogicAppsCustomConnector", "Parser",
+        "Playbook", "PlaybookTemplate", "Solution", "Watchlist", "WatchlistTemplate", "Workbook",
+        "WorkbookTemplate"
+      ], m.kind)
+    ])
+    error_message = "kind must be one of the Sentinel metadata content kinds (AnalyticsRule, AutomationRule, DataConnector, HuntingQuery, Playbook, Solution, Watchlist, Workbook, their *Template variants, AzureFunction, DataType, InvestigationQuery, LogicAppsCustomConnector, Parser)."
+  }
+
+  validation {
+    condition = alltrue([
+      for m in values(var.sentinel_metadata) :
+      m.source == null ? true : contains(["Community", "LocalWorkspace", "Solution", "SourceRepository"], m.source.kind)
+    ])
+    error_message = "source.kind must be one of Community, LocalWorkspace, Solution, SourceRepository."
+  }
+
+  validation {
+    condition = alltrue([
+      for m in values(var.sentinel_metadata) :
+      m.support == null ? true : contains(["Microsoft", "Partner", "Community"], m.support.tier)
+    ])
+    error_message = "support.tier must be one of Microsoft, Partner, Community."
+  }
+
+  validation {
+    condition = alltrue([
+      for m in values(var.sentinel_metadata) : alltrue([
+        for t in coalesce(m.threat_analysis_tactics, []) : contains([
+          "Reconnaissance", "ResourceDevelopment", "InitialAccess", "Execution", "Persistence",
+          "PrivilegeEscalation", "DefenseEvasion", "CredentialAccess", "Discovery", "LateralMovement",
+          "Collection", "CommandAndControl", "Exfiltration", "Impact", "ImpairProcessControl",
+          "InhibitResponseFunction"
+        ], t)
+      ])
+    ])
+    error_message = "threat_analysis_tactics entries must be MITRE ATT&CK tactic names in the Sentinel form (for example InitialAccess, PrivilegeEscalation, CommandAndControl)."
+  }
+
+  validation {
+    condition     = alltrue([for m in values(var.sentinel_metadata) : m.dependency == null ? true : can(jsondecode(m.dependency))])
+    error_message = "dependency must be a valid JSON string (build it with jsonencode)."
+  }
+}
+
+variable "threat_intelligence_indicators" {
+  description = <<DESC
+Threat intelligence indicators, keyed by a label that doubles as the display name unless
+display_name is set. The provider builds the STIX pattern from the plain value: give pattern as
+the domain, IP, or URL itself, and for pattern_type = "file" use the "<HashName>:<Value>" form
+(for example "MD5:78ecc5c05cd8b79af480df2f8fba0b9d"). source is stamped "Terraform" unless
+overridden (changing source forces a new indicator).
+DESC
+
+  type = map(object({
+    pattern           = string
+    pattern_type      = string
+    validate_from_utc = string
+
+    display_name        = optional(string)
+    source              = optional(string, "Terraform")
+    validate_until_utc  = optional(string)
+    confidence          = optional(number)
+    created_by          = optional(string)
+    description         = optional(string)
+    extension           = optional(string)
+    language            = optional(string)
+    object_marking_refs = optional(list(string))
+    pattern_version     = optional(string)
+    revoked             = optional(bool)
+    tags                = optional(list(string))
+    threat_types        = optional(list(string))
+    kill_chain_phases   = optional(list(string))
+
+    external_references = optional(list(object({
+      description = optional(string)
+      hashes      = optional(map(string))
+      source_name = optional(string)
+      url         = optional(string)
+    })), [])
+
+    granular_markings = optional(list(object({
+      language    = optional(string)
+      marking_ref = optional(string)
+      selectors   = optional(list(string))
+    })), [])
+  }))
+  default = {}
+
+  validation {
+    condition = alltrue([
+      for i in values(var.threat_intelligence_indicators) :
+      contains(["domain-name", "file", "ipv4-addr", "ipv6-addr", "url"], i.pattern_type)
+    ])
+    error_message = "pattern_type must be one of domain-name, file, ipv4-addr, ipv6-addr, url."
+  }
+
+  validation {
+    condition = alltrue([
+      for i in values(var.threat_intelligence_indicators) :
+      i.pattern_type != "file" || can(regex("^[A-Za-z0-9-]+:\\S+$", i.pattern))
+    ])
+    error_message = "A file indicator's pattern must be in <HashName>:<Value> form, for example MD5:78ecc5c05cd8b79af480df2f8fba0b9d."
+  }
+
+  validation {
+    condition = alltrue([
+      for i in values(var.threat_intelligence_indicators) :
+      can(formatdate("YYYY", i.validate_from_utc)) && (i.validate_until_utc == null ? true : can(formatdate("YYYY", i.validate_until_utc)))
+    ])
+    error_message = "validate_from_utc and validate_until_utc must be RFC3339 timestamps (for example 2026-07-03T00:00:00Z)."
+  }
+
+  validation {
+    condition = alltrue([
+      for i in values(var.threat_intelligence_indicators) :
+      i.confidence == null ? true : (i.confidence >= 0 && i.confidence <= 100)
+    ])
+    error_message = "confidence must be between 0 and 100."
+  }
+}
+
+variable "workspace_id" {
+  description = "The id of the Log Analytics workspace to onboard to Microsoft Sentinel."
+  type        = string
+  nullable    = false
+
+  validation {
+    condition     = can(regex("(?i)/providers/Microsoft.OperationalInsights/workspaces/", var.workspace_id))
+    error_message = "workspace_id must be an azurerm_log_analytics_workspace resource id (/.../providers/Microsoft.OperationalInsights/workspaces/<name>)."
+  }
+}
